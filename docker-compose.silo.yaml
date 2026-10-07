@@ -2,7 +2,7 @@
 services:
   silo:
     container_name: ddev-${DDEV_SITENAME}-silo
-    image: ${SILO_DOCKER_IMAGE:-${MINIO_DOCKER_IMAGE:-minio/minio:latest}}
+    image: ${SILO_DOCKER_IMAGE:-${MINIO_DOCKER_IMAGE:-pgsty/silo:latest}}
     hostname: ${DDEV_SITENAME}-silo
     networks:
       default:

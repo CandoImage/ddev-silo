@@ -110,7 +110,7 @@ echo $object['Body'];
 To change the Docker image:
 
 ```bash
-ddev dotenv set .ddev/.env.silo --silo-docker-image=minio/minio:latest
+ddev dotenv set .ddev/.env.silo --silo-docker-image=pgsty/silo:latest
 ddev add-on get CandoImage/ddev-silo
 ddev restart
 ```
