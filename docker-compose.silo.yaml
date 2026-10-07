@@ -4,12 +4,6 @@ services:
     container_name: ddev-${DDEV_SITENAME}-silo
     image: ${SILO_DOCKER_IMAGE:-${MINIO_DOCKER_IMAGE:-pgsty/silo:latest}}
     hostname: ${DDEV_SITENAME}-silo
-    networks:
-      default:
-        # Keep http://minio:10101 working for existing project configs.
-        aliases:
-          - minio
-      ddev_default: {}
     environment:
       MINIO_VOLUMES: "/data"
       MC_CONFIG_DIR: "/root/.mc"
@@ -59,6 +53,58 @@ services:
         User: ddevminio
         Pass: ddevminio
         or ddevsilo/ddevsilo
+      ssh-shell: bash
+
+  # Compatibility service so "ddev exec -s minio", "ddev ssh -s minio", hooks with
+  # "service: minio" and http://minio:10101 keep working. It runs no server of its own:
+  # socat forwards the API and console ports to silo, so localhost:10101 and the mc
+  # aliases behave like inside the silo container.
+  minio:
+    container_name: ddev-${DDEV_SITENAME}-minio
+    # DDEV strips "-<project>-built" and pulls the base image (alpine:3) before building.
+    image: alpine:3-${DDEV_SITENAME}-built
+    build:
+      args:
+        SILO_IMAGE: ${SILO_DOCKER_IMAGE:-${MINIO_DOCKER_IMAGE:-pgsty/silo:latest}}
+      dockerfile_inline: |
+        ARG SILO_IMAGE
+        FROM $${SILO_IMAGE} AS silo
+        FROM alpine:3
+        RUN apk add --no-cache bash curl socat
+        COPY --from=silo /usr/bin/mc /usr/bin/mc
+    init: true
+    entrypoint:
+      - bash
+      - -c
+      - "socat TCP-LISTEN:9090,fork,reuseaddr TCP:silo:9090 & exec socat TCP-LISTEN:10101,fork,reuseaddr TCP:silo:10101"
+    depends_on:
+      - silo
+    environment:
+      MC_CONFIG_DIR: "/root/.mc"
+      MINIO_ROOT_USER: ddevminio
+      MINIO_ROOT_PASSWORD: ddevminio
+    volumes:
+      - "silo:/data"
+      - ".:/mnt/ddev_config"
+      - ddev-global-cache:/mnt/ddev-global-cache
+    configs:
+      - source: mc-config.json
+        target: /root/.mc/config.json
+        mode: "0444"
+    expose:
+      - "9090"
+      - "10101"
+    labels:
+      com.ddev.site-name: ${DDEV_SITENAME}
+      com.ddev.approot: ${DDEV_APPROOT}
+    deploy:
+      resources:
+        limits:
+          memory: "64M"
+    restart: "no"
+    x-ddev:
+      describe-info: |
+        Alias of silo
       ssh-shell: bash
 
 configs:

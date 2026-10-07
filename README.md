@@ -31,6 +31,8 @@ After installation, make sure to commit the `.ddev` directory to version control
 | `ddev logs -s silo` | Check Silo logs |
 | `ddev ssh -s silo` | Open a shell in the Silo container |
 
+A small `minio` service is also part of the project, for compatibility with ddev-minio setups. It runs no server of its own and forwards ports `9090` and `10101` to `silo`. So `http://minio:10101`, `ddev exec -s minio ...`, `ddev ssh -s minio` and hooks with `service: minio` keep working, and inside it `localhost:10101` and `mc` behave as in the `silo` container.
+
 ### Console credentials
 
 Either login works:
@@ -163,17 +165,19 @@ The old `minio` add-on is also unregistered, so it no longer shows up in `ddev a
 
 What keeps working unchanged:
 
-| ddev-minio                                 | ddev-silo                                           |
-|--------------------------------------------|-----------------------------------------------------|
-| `http://minio:10101`                       | Still works (`http://silo:10101` is preferred)      |
-| `ddev minio`                               | Still works, alias for `ddev silo`                  |
-| `ddev mc ... minio/...`                    | Still works (`silo/...` is preferred)               |
-| `ddevminio` / `ddevminio` login            | Unchanged (`ddevsilo` / `ddevsilo` is added)        |
-| `MINIO_DOCKER_IMAGE` in `.ddev/.env.minio` | Still honored, `SILO_DOCKER_IMAGE` takes precedence |
+| ddev-minio                                                             | ddev-silo                                           |
+|------------------------------------------------------------------------|-----------------------------------------------------|
+| `http://minio:10101`                                                   | Still works (`http://silo:10101` is preferred)      |
+| `ddev exec -s minio`, `ddev ssh -s minio`, hooks with `service: minio` | Still work, run in the `minio` alias service        |
+| `ddev minio`                                                           | Still works, alias for `ddev silo`                  |
+| `ddev mc ... minio/...`                                                | Still works (`silo/...` is preferred)               |
+| `ddevminio` / `ddevminio` login                                        | Unchanged (`ddevsilo` / `ddevsilo` is added)        |
+| `MINIO_DOCKER_IMAGE` in `.ddev/.env.minio`                             | Still honored, `SILO_DOCKER_IMAGE` takes precedence |
 
 What changes:
 
-- The service is named `silo`, so use `-s silo` with `ddev logs`, `ddev ssh` and `ddev exec`.
+- The server runs in the `silo` service. `ddev logs -s silo` shows the server logs; `ddev logs -s minio` only shows the alias service.
+- The `minio` alias service shares the data volume and `mc`, but not the server itself, so anything that needs the server binary (`silo`) must run in the `silo` service.
 - Overrides in `.ddev/docker-compose.minio_extra.yaml` that target the `minio` service need to target `silo` instead.
 - If a modified (non-`#ddev-generated`) `docker-compose.minio.yaml` or `commands/minio/mc` is present, the installer stops and asks you to remove it.
 
@@ -183,5 +187,5 @@ What changes:
   * Contributed by [Oblak Studio](https://github.com/oblakstudio)
   * Maintained by the [DDEV team](https://ddev.com/support-ddev/)
 
-**[ddev-silo](https://github.com/ddev/ddev-silo)**
+**[ddev-silo](https://github.com/CandoImage/ddev-silo)**
   * Contributed by [Cando Image GmbH](https://github.com/CandoImage)

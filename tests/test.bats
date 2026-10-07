@@ -66,6 +66,10 @@ health_checks() {
   run ddev exec curl -sf http://minio:10101/minio/health/live
   assert_success
 
+  # The legacy "minio" service is an alias: commands there reach silo via localhost too
+  run ddev exec -s minio 'curl -sf http://localhost:10101/minio/health/live && mc ls minio'
+  assert_success
+
   # Both mc aliases are configured
   run ddev mc ls silo
   assert_success
