@@ -1,22 +1,22 @@
 [![add-on registry](https://img.shields.io/badge/DDEV-Add--on_Registry-blue)](https://addons.ddev.com)
-[![tests](https://github.com/ddev/ddev-minio/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/ddev/ddev-minio/actions/workflows/tests.yml?query=branch%3Amain)
-[![last commit](https://img.shields.io/github/last-commit/ddev/ddev-minio)](https://github.com/ddev/ddev-minio/commits)
-[![release](https://img.shields.io/github/v/release/ddev/ddev-minio)](https://github.com/ddev/ddev-minio/releases/latest)
+[![tests](https://github.com/CandoImage/ddev-silo/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/CandoImage/ddev-silo/actions/workflows/tests.yml?query=branch%3Amain)
+[![last commit](https://img.shields.io/github/last-commit/CandoImage/ddev-silo)](https://github.com/CandoImage/ddev-silo/commits)
+[![release](https://img.shields.io/github/v/release/CandoImage/ddev-silo)](https://github.com/CandoImage/ddev-silo/releases/latest)
 
-# DDEV MinIO ARCHIVED because upstream repo is archived and minio/minio docker image is gone
+# DDEV Silo
 
-THIS REPOSITORY IS ARCHIVED and NO LONGER FUNCTIONAL.
+This add-on integrates [Silo](https://silo.pgsty.com/), a drop-in replacement for MinIO, into your [DDEV](https://ddev.com/) project.
+
+It is based on the [ddev/ddev-minio](https://github.com/ddev/ddev-minio) add-on, which has been archived because the upstream MinIO repository is archived and the `minio/minio` Docker image is gone. The add-on keeps the MinIO names working, so projects using ddev-minio can switch without changing their configuration (see [Migrating from ddev-minio](#migrating-from-ddev-minio)).
 
 ## Overview
 
-[MinIO](https://min.io/) is an object storage system. It is API compatible with the Amazon S3 cloud storage service. It is capable of working with unstructured data such as photos, videos, log files, backups, and container images with the maximum supported object size being 50TB.
-
-This add-on integrates MinIO into your [DDEV](https://ddev.com/) project.
+Silo is an S3-compatible object storage system and a drop-in replacement for [MinIO](https://min.io/). It is capable of working with unstructured data such as photos, videos, log files, backups, and container images.
 
 ## Installation
 
 ```sh
-ddev add-on get ddev/ddev-minio
+ddev add-on get CandoImage/ddev-silo
 ddev restart
 ```
 
@@ -26,35 +26,40 @@ After installation, make sure to commit the `.ddev` directory to version control
 
 | Command | Description |
 | ------- | ----------- |
-| `ddev minio` | Open MinIO console in your browser (`https://<project>.ddev.site:9090`) |
-| `ddev mc` | Run MinIO admin client |
-| `ddev logs -s minio` | Check MinIO logs |
+| `ddev silo` | Open Silo console in your browser (`https://<project>.ddev.site:9090`) |
+| `ddev mc` | Run MinIO client (`mc`); both `silo` and `minio` are configured as aliases, e.g. `ddev mc ls silo` |
+| `ddev logs -s silo` | Check Silo logs |
+| `ddev ssh -s silo` | Open a shell in the Silo container |
 
-### MinIO console credentials
+### Console credentials
 
-| Field    | Value       |
-|----------|-------------|
-| Username | `ddevminio` |
-| Password | `ddevminio` |
+Either login works:
+
+| Username    | Password    | Notes                                                       |
+|-------------|-------------|-------------------------------------------------------------|
+| `ddevminio` | `ddevminio` | Root user, also used as S3 access key / secret              |
+| `ddevsilo`  | `ddevsilo`  | Admin user (`consoleAdmin` policy), created on `ddev start` |
+
+The `ddevsilo` user is created by a `post-start` hook in `.ddev/config.silo.yaml`. It can also be used as S3 access key / secret.
 
 ### File access
 
-Project docker instances can access MinIO API via `http://minio:10101`
+Project docker instances can access the S3 API via `http://silo:10101` (`http://minio:10101` works too).
 
-DDEV router is configured to proxy the requests to `https://<project>.ddev.site:10101` to MinIO S3 API.
+DDEV router is configured to proxy the requests to `https://<project>.ddev.site:10101` to the S3 API.
 
 Example URLs for accessing files are
 
-| Bucket   | File path              | Internal URL                                     | External URL                                                    |
-|----------|------------------------|--------------------------------------------------|-----------------------------------------------------------------|
-| `photos` | `vacation/seaside.jpg` | `http://minio:10101/photos/vacation/seaside.jpg` | `https://<project>.ddev.site:10101/photos/vacation/seaside.jpg` |
-| `music`  | `tron/derezzed.mp3`    | `http://minio:10101/music/tron/derezzed.mp3`     | `https://<project>.ddev.site:10101/music/tron/derezzed.mp3`     |
+| Bucket   | File path              | Internal URL                                    | External URL                                                    |
+|----------|------------------------|-------------------------------------------------|-----------------------------------------------------------------|
+| `photos` | `vacation/seaside.jpg` | `http://silo:10101/photos/vacation/seaside.jpg` | `https://<project>.ddev.site:10101/photos/vacation/seaside.jpg` |
+| `music`  | `tron/derezzed.mp3`    | `http://silo:10101/music/tron/derezzed.mp3`     | `https://<project>.ddev.site:10101/music/tron/derezzed.mp3`     |
 
 ## Connecting from PHP
 
 ### Installation
 
-Since MinIO is S3 compatible you can use [AWS PHP SDK](https://packagist.org/packages/aws/aws-sdk-php). Install it with composer:
+Since Silo is S3 compatible you can use [AWS PHP SDK](https://packagist.org/packages/aws/aws-sdk-php). Install it with composer:
 
 ```bash
 ddev composer require aws/aws-sdk-php
@@ -68,7 +73,7 @@ ddev composer require aws/aws-sdk-php
 require __DIR__ . '/vendor/autoload.php';
 
 $s3 = new \Aws\S3\S3Client([
-    'endpoint' => 'http://minio:10101',
+    'endpoint' => 'http://silo:10101',
     'credentials' => [
         'key' => 'ddevminio',
         'secret' => 'ddevminio',
@@ -78,7 +83,7 @@ $s3 = new \Aws\S3\S3Client([
     'use_path_style_endpoint' => true,
 ]);
 
-$bucketName = 'ddev-minio';
+$bucketName = 'ddev-silo';
 
 if (!$s3->doesBucketExist($bucketName)) {
     $s3->createBucket([
@@ -89,7 +94,7 @@ if (!$s3->doesBucketExist($bucketName)) {
 $s3->putObject([
     'Bucket' => $bucketName,
     'Key' => 'ddev-test',
-    'Body' => 'DDEV Minio is working!',
+    'Body' => 'DDEV Silo is working!',
 ]);
 
 $object = $s3->getObject([
@@ -105,16 +110,18 @@ echo $object['Body'];
 To change the Docker image:
 
 ```bash
-ddev dotenv set .ddev/.env.minio --minio-docker-image=minio/minio:latest
-ddev add-on get ddev/ddev-minio
+ddev dotenv set .ddev/.env.silo --silo-docker-image=minio/minio:latest
+ddev add-on get CandoImage/ddev-silo
 ddev restart
 ```
 
-You can modify `.ddev/docker-compose.minio.yaml` directly by removing the `#ddev-generated` line, but it's recommended to use a separate `.ddev/docker-compose.minio_extra.yaml` file for overrides, for example:
+An existing `MINIO_DOCKER_IMAGE` setting in `.ddev/.env.minio` is still honored when `SILO_DOCKER_IMAGE` is not set.
+
+You can modify `.ddev/docker-compose.silo.yaml` directly by removing the `#ddev-generated` line, but it's recommended to use a separate `.ddev/docker-compose.silo_extra.yaml` file for overrides, for example:
 
 ```yaml
 services:
-  minio:
+  silo:
     command: server --console-address :9090 --address :10101
 
 configs:
@@ -123,6 +130,13 @@ configs:
       {
         "version": "10",
         "aliases": {
+          "silo": {
+            "url": "http://localhost:10101",
+            "accessKey": "ddevminio",
+            "secretKey": "ddevminio",
+            "api": "s3v4",
+            "path": "auto"
+          },
           "minio": {
             "url": "http://localhost:10101",
             "accessKey": "ddevminio",
@@ -134,8 +148,40 @@ configs:
       }
 ```
 
+## Migrating from ddev-minio
+
+Install this add-on over the existing one and restart:
+
+```sh
+ddev add-on get CandoImage/ddev-silo
+ddev restart
+```
+
+The installer removes the old `#ddev-generated` MinIO files and the old `ddev-<project>-minio` container. Your data is kept: Silo uses the same `ddev-<project>-minio` Docker volume.
+
+The old `minio` add-on is also unregistered, so it no longer shows up in `ddev add-on list --installed`. There's no need to run `ddev add-on remove minio` afterwards.
+
+What keeps working unchanged:
+
+| ddev-minio                                 | ddev-silo                                           |
+|--------------------------------------------|-----------------------------------------------------|
+| `http://minio:10101`                       | Still works (`http://silo:10101` is preferred)      |
+| `ddev minio`                               | Still works, alias for `ddev silo`                  |
+| `ddev mc ... minio/...`                    | Still works (`silo/...` is preferred)               |
+| `ddevminio` / `ddevminio` login            | Unchanged (`ddevsilo` / `ddevsilo` is added)        |
+| `MINIO_DOCKER_IMAGE` in `.ddev/.env.minio` | Still honored, `SILO_DOCKER_IMAGE` takes precedence |
+
+What changes:
+
+- The service is named `silo`, so use `-s silo` with `ddev logs`, `ddev ssh` and `ddev exec`.
+- Overrides in `.ddev/docker-compose.minio_extra.yaml` that target the `minio` service need to target `silo` instead.
+- If a modified (non-`#ddev-generated`) `docker-compose.minio.yaml` or `commands/minio/mc` is present, the installer stops and asks you to remove it.
+
 ## Credits
 
-**Contributed by [Oblak Studio](https://github.com/oblakstudio)**
+**[ddev-minio](https://github.com/ddev/ddev-minio)** 
+  * Contributed by [Oblak Studio](https://github.com/oblakstudio)
+  * Maintained by the [DDEV team](https://ddev.com/support-ddev/)
 
-**Maintained by the [DDEV team](https://ddev.com/support-ddev/)**
+**[ddev-silo](https://github.com/ddev/ddev-silo)**
+  * Contributed by [Cando Image GmbH](https://github.com/CandoImage)

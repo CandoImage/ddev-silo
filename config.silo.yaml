@@ -1,0 +1,6 @@
+#ddev-generated
+# Adds a second console login (ddevsilo / ddevsilo) next to the ddevminio root user.
+hooks:
+  post-start:
+    - exec: "mc ready silo >/dev/null && mc admin user add silo ddevsilo ddevsilo >/dev/null && (mc admin policy attach silo consoleAdmin --user ddevsilo >/dev/null 2>&1 || true)"
+      service: silo

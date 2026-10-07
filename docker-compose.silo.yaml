@@ -1,9 +1,15 @@
 #ddev-generated
 services:
-  minio:
-    container_name: ddev-${DDEV_SITENAME}-minio
-    image: ${MINIO_DOCKER_IMAGE:-minio/minio:latest}
-    hostname: ${DDEV_SITENAME}-minio
+  silo:
+    container_name: ddev-${DDEV_SITENAME}-silo
+    image: ${SILO_DOCKER_IMAGE:-${MINIO_DOCKER_IMAGE:-minio/minio:latest}}
+    hostname: ${DDEV_SITENAME}-silo
+    networks:
+      default:
+        # Keep http://minio:10101 working for existing project configs.
+        aliases:
+          - minio
+      ddev_default: {}
     environment:
       MINIO_VOLUMES: "/data"
       MC_CONFIG_DIR: "/root/.mc"
@@ -17,7 +23,7 @@ services:
       HTTPS_EXPOSE: "9090:9090,10101:10101"
     command: server --console-address :9090 --address :10101
     volumes:
-      - "minio:/data"
+      - "silo:/data"
       - ".:/mnt/ddev_config"
       - ddev-global-cache:/mnt/ddev-global-cache
       - type: volume
@@ -52,6 +58,7 @@ services:
       describe-info: |
         User: ddevminio
         Pass: ddevminio
+        or ddevsilo/ddevsilo
       ssh-shell: bash
 
 configs:
@@ -60,6 +67,13 @@ configs:
       {
         "version": "10",
         "aliases": {
+          "silo": {
+            "url": "http://localhost:10101",
+            "accessKey": "ddevminio",
+            "secretKey": "ddevminio",
+            "api": "s3v4",
+            "path": "auto"
+          },
           "minio": {
             "url": "http://localhost:10101",
             "accessKey": "ddevminio",
@@ -71,7 +85,8 @@ configs:
       }
 
 volumes:
-  minio:
+  # Keyed "silo" but reuses the existing MinIO Docker volume so data carries over.
+  silo:
     name: ddev-${DDEV_SITENAME}-minio
     labels:
       com.ddev.site-name: ${DDEV_SITENAME}

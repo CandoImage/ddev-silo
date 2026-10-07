@@ -1,9 +1,11 @@
-name: minio
+name: silo
 
 project_files:
   - commands/host/minio
-  - commands/minio/mc
-  - docker-compose.minio.yaml
+  - commands/host/silo
+  - commands/silo/mc
+  - config.silo.yaml
+  - docker-compose.silo.yaml
 
 ddev_version_constraint: '>= v1.24.10'
 
@@ -11,7 +13,7 @@ pre_install_actions:
   - |
     #ddev-description:Removing old minio files
     has_old_files=false
-    for file in "${DDEV_APPROOT}/.ddev/minio/mc-config.json" "${DDEV_APPROOT}/.ddev/.minioImageBuild/Dockerfile" "${DDEV_APPROOT}/.ddev/.minioImageBuild/ddev-entrypoint.sh"; do
+    for file in "${DDEV_APPROOT}/.ddev/minio/mc-config.json" "${DDEV_APPROOT}/.ddev/.minioImageBuild/Dockerfile" "${DDEV_APPROOT}/.ddev/.minioImageBuild/ddev-entrypoint.sh" "${DDEV_APPROOT}/.ddev/docker-compose.minio.yaml" "${DDEV_APPROOT}/.ddev/commands/minio/mc"; do
       if [ ! -f "${file}" ]; then
         continue
       fi
@@ -24,4 +26,14 @@ pre_install_actions:
     done
     if [ "${has_old_files}" = true ]; then
       exit 2
+    fi
+  - |
+    #ddev-description:Removing old minio container (data volume is kept)
+    docker rm -f "ddev-${DDEV_SITENAME}-minio" >/dev/null 2>&1 || true
+  - |
+    #ddev-description:Unregistering the replaced minio add-on
+    # ddev-silo supersedes ddev-minio. Dropping its metadata keeps "ddev add-on remove minio"
+    # from deleting files that ddev-silo now owns (e.g. commands/host/minio).
+    if grep -qs '^name: minio$' "${DDEV_APPROOT}/.ddev/addon-metadata/minio/manifest.yaml"; then
+      rm -rf "${DDEV_APPROOT}/.ddev/addon-metadata/minio"
     fi

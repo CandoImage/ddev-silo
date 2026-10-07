@@ -16,7 +16,7 @@ setup() {
   set -eu -o pipefail
 
   # Override this variable for your add-on:
-  export GITHUB_REPO=ddev/ddev-minio
+  export GITHUB_REPO=CandoImage/ddev-silo
 
   TEST_BREW_PREFIX="$(brew --prefix 2>/dev/null || true)"
   export BATS_LIB_PATH="${BATS_LIB_PATH}:${TEST_BREW_PREFIX}/lib:/usr/lib/bats"
@@ -39,7 +39,7 @@ setup() {
 }
 
 health_checks() {
-  run ddev exec -s minio command -v bash
+  run ddev exec -s silo command -v bash
   assert_success
   assert_output --partial "bash"
 
@@ -47,6 +47,12 @@ health_checks() {
   assert_success
   assert_output --partial "User: ddevminio"
   assert_output --partial "Pass: ddevminio"
+  assert_output --partial "or ddevsilo/ddevsilo"
+
+  # The second console user created by the post-start hook exists and is admin
+  run ddev mc admin user info silo ddevsilo
+  assert_success
+  assert_output --partial "PolicyName: consoleAdmin"
 
   # Make sure we can hit the 9090 port successfully
   run curl -sfI https://${PROJNAME}.ddev.site:9090
@@ -54,7 +60,22 @@ health_checks() {
   assert_output --partial "HTTP/2 200"
   assert_output --partial "server: MinIO Console"
 
-  # Make sure `ddev minio` works
+  # Both the new "silo" and the legacy "minio" hostnames reach the API
+  run ddev exec curl -sf http://silo:10101/minio/health/live
+  assert_success
+  run ddev exec curl -sf http://minio:10101/minio/health/live
+  assert_success
+
+  # Both mc aliases are configured
+  run ddev mc ls silo
+  assert_success
+  run ddev mc ls minio
+  assert_success
+
+  # Make sure `ddev silo` and the legacy `ddev minio` work
+  DDEV_DEBUG=true run ddev silo
+  assert_success
+  assert_output --partial "FULLURL https://${PROJNAME}.ddev.site:9090"
   DDEV_DEBUG=true run ddev minio
   assert_success
   assert_output --partial "FULLURL https://${PROJNAME}.ddev.site:9090"
